@@ -157,6 +157,17 @@ cython_debug/
 # Sqlite database files
 *.sqlite3
 
+# Django migrations
+*/migrations/*.py
+*/migrations/*.pyc
+!*/migrations/__init__.py
+*/migrations/__pycache__/
+
+# Python cache directories
+.pycache/
+*/__pycache__/
+
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
