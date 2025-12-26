@@ -1,0 +1,153 @@
+# Core Django
+Django==4.2.11
+python-decouple==3.8
+
+# Database
+psycopg2-binary==2.9.9
+dj-database-url==3.0.1
+
+
+# GraphQL
+graphene-django==3.2.0
+graphql-core==3.2.3
+graphql-relay==3.2.0
+
+
+# Authentication & Security
+djangorestframework==3.15.1
+django-cors-headers==4.3.1
+PyJWT==2.8.0
+django-allauth==0.61.1
+dj-rest-auth==5.0.2
+djangorestframework-simplejwt==5.3.1
+
+
+# File & Media Storage
+Pillow==10.2.0
+django-storages==1.14.2
+boto3==1.34.34  # AWS S3
+django-cleanup==8.0.0  # Auto delete old files
+
+# Image Processing & Thumbnails
+easy-thumbnails==2.8.5
+django-imagekit==5.0.0
+
+# Audio Processing
+mutagen==1.47.0  # Audio metadata
+pydub==0.25.1
+
+# Caching
+django-redis==5.4.0
+redis==5.0.1
+
+# Task Queue & Background Jobs
+celery==5.3.6
+django-celery-beat==2.8.1
+django-celery-results==2.5.1
+
+
+# Search & Filtering
+django-filter==23.5
+elasticsearch==8.12.0
+django-elasticsearch-dsl==8.0
+
+# API Documentation
+graphene-django-extras==1.0.1
+
+# Monitoring & Logging
+sentry-sdk==1.40.0
+django-debug-toolbar==4.2.0
+
+# Performance & Optimization
+django-silk==5.0.4  # Profiling
+gunicorn==21.2.0
+whitenoise==6.6.0  # Static files
+
+# Data & Analytics
+pandas==2.2.0
+numpy==1.26.3
+
+# Utilities
+python-slugify==8.0.1
+python-dateutil==2.8.2
+pytz==2024.1
+Faker==12.0.0
+# Code Quality
+black==24.1.1
+flake8==7.0.0
+isort==5.13.2
+pylint==3.0.3
+pylint-django==2.5.5
+
+# Testing
+pytest==7.4.4
+pytest-django==4.7.0
+pytest-cov==4.1.0
+factory-boy==3.3.0
+mixer==7.2.2
+
+# Environment & Configuration
+python-dotenv==1.0.1
+
+# Email
+django-anymail==10.2
+
+# Recommendations & ML (Optional but useful)
+scikit-learn==1.4.0
+scipy==1.12.0
+
+# Rate Limiting
+django-ratelimit==4.1.0
+
+# Admin Improvements
+django-admin-interface==0.28.0
+django-grappelli==3.0.8
+
+# Translation
+django-modeltranslation==0.18.11
+
+# Health Checks
+django-health-check==3.18.1
+
+# API Versioning & Documentation
+drf-spectacular==0.27.0
+
+# WebSocket Support (for real-time features)
+channels==4.0.0
+channels-redis==4.2.0
+daphne==4.1.0
+
+# Pagination
+django-cursor-pagination==0.2.1
+
+# UUID Support
+shortuuid==1.0.11
+
+# Social Auth
+social-auth-app-django==5.4.0
+
+# IP & Geolocation
+geoip2==4.7.0
+django-ipware==6.0.4
+
+# Stripe for Payments (Subscriptions)
+stripe==8.3.0
+
+# CSV/Excel Export
+django-import-export==3.3.7
+
+# Password Validation
+django-password-validators==1.7.1
+
+# JSON Schema Validation
+jsonschema==4.21.1
+
+# HTTP Requests
+requests==2.31.0
+httpx==0.26.0
+
+# Data Validation
+marshmallow==3.20.2
+
+# Timezone Support
+django-timezone-field==6.1.0
