@@ -129,10 +129,11 @@ REST_FRAMEWORK = {
 # GraphQL
 GRAPHENE = {
     "SCHEMA": "config.schema.schema",
-    "MIDDLEWARE": [
-        "graphql_jwt.middleware.JSONWebTokenMiddleware",
-    ],
 }
+# "MIDDLEWARE": [
+#   "graphql_jwt.middleware.JSONWebTokenMiddleware",
+# ],
+
 
 # CORS
 CORS_ALLOWED_ORIGINS = config(

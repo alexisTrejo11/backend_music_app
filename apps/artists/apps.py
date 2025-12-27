@@ -4,3 +4,7 @@ from django.apps import AppConfig
 class ArtistsConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "apps.artists"
+    verbose_name = "Artists"
+
+    def ready(self):
+        import apps.artists.signals
