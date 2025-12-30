@@ -1,18 +1,22 @@
 import graphene
 
 
-class ArtistInput(graphene.InputObjectType):
+class SocialLinksInput(graphene.InputObjectType):
+    """Input for social media links"""
+
+    website = graphene.String()
+    spotify = graphene.String()
+    instagram = graphene.String()
+    twitter = graphene.String()
+
+
+class CreateArtistInput(graphene.InputObjectType):
+    """Input for creating an artist"""
+
     name = graphene.String(required=True)
     bio = graphene.String()
-    image = graphene.String()
-
-
-class ArtistUpdateInput(graphene.InputObjectType):
-    artist_id = graphene.Int(required=True)
-    name = graphene.String()
-    bio = graphene.String()
-    image = graphene.String()
-
-
-class ArtistDeleteInput(graphene.InputObjectType):
-    artist_id = graphene.Int(required=True)
+    profile_image = graphene.String()  # Base64 or URL
+    cover_image = graphene.String()  # Base64 or URL
+    genres = graphene.List(graphene.String)
+    country = graphene.String()
+    social_links = graphene.Field(SocialLinksInput)

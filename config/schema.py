@@ -2,13 +2,12 @@ import graphene
 import apps.artists.schema as artists_schema
 
 
-# TODO: Fix Type Error
-class Query(artists_schema.ArtistQuery, graphene.ObjectType):
+class Query(artists_schema.Query, graphene.ObjectType):
     # This will inherit queries from all apps
     pass
 
 
-class Mutation(artists_schema.ArtistMutation, graphene.ObjectType):
+class Mutation(artists_schema.Mutation, graphene.ObjectType):
     # This will inherit mutations from all apps
     pass
 

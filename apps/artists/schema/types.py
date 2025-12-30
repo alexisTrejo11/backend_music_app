@@ -1,9 +1,8 @@
 import graphene
 from graphene_django import DjangoObjectType
-from apps.artists.models import Artist, ArtistMember
 from apps.music.models import Album, Song, Genre
-from apps.interactions.models import FollowedArtist as Follow
-from ..models import Artist, ArtistMember
+from apps.interactions.models import FollowedArtist
+from ..models import ArtistMember, Artist
 
 
 class ArtistMemberType(DjangoObjectType):
@@ -82,22 +81,22 @@ class ArtistType(DjangoObjectType):
 
     def resolve_followers_count(self, info):
         """Get total followers count"""
-        return Follow.objects.filter(artist=self).count()
+        return FollowedArtist.objects.filter(artist=self).count()
 
     def resolve_is_following(self, info):
         """Check if current user is following this artist"""
         user = info.context.user
         if user.is_authenticated:
-            return Follow.objects.filter(user=user, artist=self).exists()
+            return FollowedArtist.objects.filter(user=user, artist=self).exists()
         return False
 
     def resolve_albums_count(self, info):
         """Get total albums count"""
-        return Album.objects.filter(artist=self).count()
+        return self.albums.count()
 
     def resolve_songs_count(self, info):
         """Get total songs count"""
-        return Song.objects.filter(artist=self).count()
+        return self.songs.count()
 
     def resolve_members(self, info):
         """Get artist members"""
@@ -105,11 +104,11 @@ class ArtistType(DjangoObjectType):
 
     def resolve_albums(self, info):
         """Get artist albums"""
-        return Album.objects.filter(artist=self).order_by("-release_date")
+        return self.albums.order_by("-release_date")
 
     def resolve_top_songs(self, info, limit=10):
         """Get top songs by play count"""
-        return Song.objects.filter(artist=self).order_by("-play_count")[:limit]
+        return self.songs.order_by("-play_count")[:limit]
 
     def resolve_genres(self, info):
         """Get artist genres"""

@@ -30,8 +30,9 @@ def artist_post_save(sender, instance, created, **kwargs):
     # Clear related caches
     from django.core.cache import cache
 
-    cache.delete_pattern(f"trending_artists_*")
-    cache.delete_pattern(f"similar_artists_{instance.id}_*")
+    # Delete specific cache keys
+    cache.delete(f"trending_artists")
+    cache.delete(f"similar_artists_{instance.id}")
 
 
 @receiver(post_save, sender=ArtistMember)
@@ -48,4 +49,4 @@ def artist_post_delete(sender, instance, **kwargs):
     # Clear caches
     from django.core.cache import cache
 
-    cache.delete_pattern(f"similar_artists_{instance.id}_*")
+    cache.delete(f"similar_artists_{instance.id}")

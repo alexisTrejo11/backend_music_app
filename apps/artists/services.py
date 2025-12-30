@@ -1,196 +1,414 @@
-from django.db.models import Count, Q, F
-from django.core.cache import cache
-from datetime import timedelta
+from django.db.models import Q, Count
+from django.utils.text import slugify
 from django.utils import timezone
-from .models import Artist
-from apps.music.models import Song
-from apps.interactions.models import (
-    FollowedArtist as Follow,
-    ListeningHistory as PlayHistory,
-)
+from django.core.exceptions import ValidationError
+from datetime import timedelta
+from typing import Dict, List, Optional
+
+from .models import Artist, ArtistMember
+from apps.music.models import Genre
+from apps.interactions.models import FollowedArtist
 
 
 class ArtistService:
-    """Business logic for artist operations"""
+    """Service layer for Artist business logic"""
 
     @staticmethod
-    def get_trending_artists(time_range="WEEK", limit=50):
+    def create_artist(data: Dict) -> Artist:
         """
-        Get trending artists based on various metrics
-        time_range: DAY, WEEK, MONTH, YEAR
+        Create a new artist with validation
+
+        Args:
+            data: Dictionary with artist data from CreateArtistInput
+
+        Returns:
+            Artist: Created artist instance
+
+        Raises:
+            ValidationError: If validation fails
         """
-        cache_key = f"trending_artists_{time_range}_{limit}"
-        cached = cache.get(cache_key)
+        # Validate required fields
+        name = data.get("name", "").strip()
+        if not name:
+            raise ValidationError("Artist name is required")
 
-        if cached:
-            return cached
+        # Check for duplicate name
+        if Artist.objects.filter(name__iexact=name).exists():
+            raise ValidationError(f"Artist with name '{name}' already exists")
 
-        # Calculate start date based on time range
-        now = timezone.now()
-        time_ranges = {
-            "DAY": now - timedelta(days=1),
-            "WEEK": now - timedelta(weeks=1),
-            "MONTH": now - timedelta(days=30),
-            "YEAR": now - timedelta(days=365),
+        # Create unique slug
+        slug = slugify(name)
+        original_slug = slug
+        counter = 1
+        while Artist.objects.filter(slug=slug).exists():
+            slug = f"{original_slug}-{counter}"
+            counter += 1
+
+        # Extract social links if provided
+        social_links = data.get("social_links", {})
+
+        # Create artist
+        artist = Artist.objects.create(
+            name=name,
+            slug=slug,
+            bio=data.get("bio", ""),
+            country=data.get("country", ""),
+            website=social_links.get("website", "") if social_links else "",
+            spotify_url=social_links.get("spotify", "") if social_links else "",
+            instagram=social_links.get("instagram", "") if social_links else "",
+            twitter=social_links.get("twitter", "") if social_links else "",
+        )
+
+        # Handle genres
+        genres = data.get("genres", [])
+        if genres:
+            ArtistService._add_genres_to_artist(artist, genres)
+
+        # TODO: Handle image uploads (profile_image, cover_image)
+        # This would involve processing base64 or URLs and saving to storage
+
+        return artist
+
+    @staticmethod
+    def update_artist(artist_id: str, data: Dict) -> Artist:
+        """
+        Update an existing artist
+
+        Args:
+            artist_id: ID of the artist to update
+            data: Dictionary with updated data from UpdateArtistInput
+
+        Returns:
+            Artist: Updated artist instance
+
+        Raises:
+            Artist.DoesNotExist: If artist not found
+            ValidationError: If validation fails
+        """
+        try:
+            artist = Artist.objects.get(id=artist_id)
+        except Artist.DoesNotExist:
+            raise ValidationError(f"Artist with ID {artist_id} not found")
+
+        # Update basic fields
+        updateable_fields = ["bio", "country", "verified"]
+        for field in updateable_fields:
+            if field in data:
+                setattr(artist, field, data[field])
+
+        # Handle name update (requires slug update)
+        if "name" in data:
+            new_name = data["name"].strip()
+            if not new_name:
+                raise ValidationError("Artist name cannot be empty")
+
+            # Check if name is being changed to an existing name
+            if new_name != artist.name:
+                if (
+                    Artist.objects.filter(name__iexact=new_name)
+                    .exclude(id=artist_id)
+                    .exists()
+                ):
+                    raise ValidationError(
+                        f"Artist with name '{new_name}' already exists"
+                    )
+
+                artist.name = new_name
+                artist.slug = slugify(new_name)
+
+        # Handle social links
+        if "social_links" in data:
+            social_links = data["social_links"]
+            if social_links:
+                artist.website = social_links.get("website", artist.website)
+                artist.spotify_url = social_links.get("spotify", artist.spotify_url)
+                artist.instagram = social_links.get("instagram", artist.instagram)
+                artist.twitter = social_links.get("twitter", artist.twitter)
+
+        # Handle genres
+        if "genres" in data:
+            artist.genres.clear()
+            ArtistService._add_genres_to_artist(artist, data["genres"])
+
+        artist.save()
+        return artist
+
+    @staticmethod
+    def delete_artist(artist_id: str) -> bool:
+        """
+        Delete an artist (soft delete in production)
+
+        Args:
+            artist_id: ID of the artist to delete
+
+        Returns:
+            bool: True if deleted successfully
+
+        Raises:
+            Artist.DoesNotExist: If artist not found
+        """
+        try:
+            artist = Artist.objects.get(id=artist_id)
+
+            # In production, you might want to do a soft delete instead
+            # artist.is_active = False
+            # artist.save()
+
+            artist.delete()
+            return True
+
+        except Artist.DoesNotExist:
+            raise ValidationError(f"Artist with ID {artist_id} not found")
+
+    @staticmethod
+    def follow_artist(user, artist_id: str) -> Dict:
+        """
+        Follow an artist
+
+        Args:
+            user: User instance
+            artist_id: ID of the artist to follow
+
+        Returns:
+            Dict with success, message, and artist
+        """
+        try:
+            artist = Artist.objects.get(id=artist_id)
+        except Artist.DoesNotExist:
+            raise ValidationError(f"Artist with ID {artist_id} not found")
+
+        # Check if already following
+        follow, created = FollowedArtist.objects.get_or_create(user=user, artist=artist)
+
+        if not created:
+            return {
+                "success": False,
+                "message": "You are already following this artist",
+                "artist": artist,
+            }
+
+        # Update monthly listeners count
+        artist.monthly_listeners = FollowedArtist.objects.filter(artist=artist).count()
+        artist.save(update_fields=["monthly_listeners"])
+
+        return {
+            "success": True,
+            "message": "Successfully followed artist",
+            "artist": artist,
         }
 
-        start_date = time_ranges.get(time_range.upper(), time_ranges["WEEK"])
-
-        # Calculate trending score based on:
-        # 1. Recent plays
-        # 2. New followers
-        # 3. Recent album releases
-        # 4. Social media mentions (simplified)
-
-        # Get artists with recent plays
-        recent_plays = (
-            PlayHistory.objects.filter(played_at__gte=start_date)
-            .values("song__artist")
-            .annotate(play_count=Count("id"))
-            .order_by("-play_count")[: limit * 2]
-        )
-
-        artist_ids = [
-            item["song__artist"] for item in recent_plays if item["song__artist"]
-        ]
-
-        # Get artists with recent followers
-        recent_follows = (
-            Follow.objects.filter(created_at__gte=start_date)
-            .values("artist")
-            .annotate(follow_count=Count("id"))
-            .order_by("-follow_count")[: limit * 2]
-        )
-
-        artist_ids.extend([item["artist"] for item in recent_follows])
-
-        # Remove duplicates and get unique artist IDs
-        unique_artist_ids = list(set(artist_ids))
-
-        # Get artists and order by monthly listeners as fallback
-        artists = Artist.objects.filter(id__in=unique_artist_ids).order_by(
-            "-monthly_listeners"
-        )[:limit]
-
-        # Cache for 5 minutes
-        cache.set(cache_key, artists, 300)
-
-        return artists
-
     @staticmethod
-    def get_similar_artists(artist_id, limit=20):
-        """Get artists similar to given artist"""
-        cache_key = f"similar_artists_{artist_id}_{limit}"
-        cached = cache.get(cache_key)
+    def unfollow_artist(user, artist_id: str) -> Dict:
+        """
+        Unfollow an artist
 
-        if cached:
-            return cached
+        Args:
+            user: User instance
+            artist_id: ID of the artist to unfollow
 
+        Returns:
+            Dict with success and message
+        """
         try:
             artist = Artist.objects.get(id=artist_id)
+        except Artist.DoesNotExist:
+            raise ValidationError(f"Artist with ID {artist_id} not found")
 
-            # Find similar artists based on:
-            # 1. Shared genres (weight: 0.5)
-            # 2. Shared listeners (weight: 0.3)
-            # 3. Similar monthly listeners (weight: 0.2)
+        # Try to delete the follow relationship
+        deleted, _ = FollowedArtist.objects.filter(user=user, artist=artist).delete()
 
-            # Get artists with same genres
-            genre_artists = (
-                Artist.objects.filter(genres__in=artist.genres.all())
-                .exclude(id=artist_id)
-                .annotate(
-                    common_genres=Count(
-                        "genres", filter=Q(genres__in=artist.genres.all())
-                    )
-                )
-                .distinct()
+        if deleted == 0:
+            return {"success": False, "message": "You are not following this artist"}
+
+        # Update monthly listeners count
+        artist.monthly_listeners = FollowedArtist.objects.filter(artist=artist).count()
+        artist.save(update_fields=["monthly_listeners"])
+
+        return {"success": True, "message": "Successfully unfollowed artist"}
+
+    @staticmethod
+    def get_trending_artists(time_range: str = "WEEK", limit: int = 50) -> List[Artist]:
+        """
+        Get trending artists based on recent activity
+
+        Args:
+            time_range: One of DAY, WEEK, MONTH, YEAR
+            limit: Maximum number of artists to return
+
+        Returns:
+            List of Artist instances
+        """
+        # Define time ranges
+        time_filters = {
+            "DAY": timezone.now() - timedelta(days=1),
+            "WEEK": timezone.now() - timedelta(weeks=1),
+            "MONTH": timezone.now() - timedelta(days=30),
+            "YEAR": timezone.now() - timedelta(days=365),
+        }
+
+        time_filter = time_filters.get(time_range, time_filters["WEEK"])
+
+        # In a real implementation, you would calculate trending based on:
+        # - Recent plays from ListeningHistory
+        # - Recent follows
+        # - Growth rate
+        # For now, return artists with most monthly listeners and recent activity
+
+        return Artist.objects.annotate(
+            recent_followers=Count(
+                "followers", filter=Q(followers__created_at__gte=time_filter)
             )
+        ).order_by("-recent_followers", "-monthly_listeners")[:limit]
 
-            # Order by similarity score
-            similar_artists = genre_artists.order_by(
-                "-common_genres", "-monthly_listeners"
-            )[:limit]
+    @staticmethod
+    def get_similar_artists(artist_id: str, limit: int = 20) -> List[Artist]:
+        """
+        Get artists similar to the given artist based on genres
 
-            cache.set(cache_key, similar_artists, 600)  # Cache for 10 minutes
-            return similar_artists
+        Args:
+            artist_id: ID of the reference artist
+            limit: Maximum number of similar artists to return
 
+        Returns:
+            List of Artist instances
+        """
+        try:
+            artist = Artist.objects.get(id=artist_id)
         except Artist.DoesNotExist:
-            return []
+            raise ValidationError(f"Artist with ID {artist_id} not found")
+
+        # Get genres of the reference artist
+        artist_genres = artist.genres.values_list("id", flat=True)
+
+        if not artist_genres:
+            # If no genres, return popular artists
+            return Artist.objects.exclude(id=artist_id).order_by("-monthly_listeners")[
+                :limit
+            ]
+
+        # Find artists with matching genres
+        similar = (
+            Artist.objects.filter(genres__id__in=artist_genres)
+            .exclude(id=artist_id)
+            .annotate(
+                matching_genres=Count("genres", filter=Q(genres__id__in=artist_genres))
+            )
+            .order_by("-matching_genres", "-monthly_listeners")
+            .distinct()[:limit]
+        )
+
+        return similar
 
     @staticmethod
-    def search_artists(query, limit=20, offset=0):
-        """Search artists with ranking"""
-        # Split query into terms
-        terms = query.lower().split()
+    def add_member(data: Dict) -> ArtistMember:
+        """
+        Add a member to an artist/band
 
-        # Build Q objects for search
-        q_objects = Q()
-        for term in terms:
-            q_objects |= Q(name__icontains=term)
-            q_objects |= Q(bio__icontains=term)
-            q_objects |= Q(country__icontains=term)
+        Args:
+            data: Dictionary with member data from AddArtistMemberInput
 
-        # Search and rank by:
-        # 1. Exact name match
-        # 2. Name starts with term
-        # 3. Name contains term
-        # 4. Bio contains term
+        Returns:
+            ArtistMember: Created member instance
+        """
+        artist_id = data.get("artist_id")
+        name = data.get("name", "").strip()
+        role = data.get("role", "").strip()
 
-        artists = Artist.objects.filter(q_objects)
-
-        # Add ranking annotation
-        from django.db.models import Case, When, Value, IntegerField
-        from django.db.models.functions import Lower
-
-        whens = []
-        for i, term in enumerate(terms):
-            # Higher weight for earlier terms
-            weight = len(terms) - i
-
-            # Exact name match (highest priority)
-            whens.append(When(name__iexact=term, then=Value(100 * weight)))
-
-            # Name starts with term
-            whens.append(When(name__istartswith=term, then=Value(50 * weight)))
-
-            # Name contains term
-            whens.append(When(name__icontains=term, then=Value(20 * weight)))
-
-            # Bio contains term
-            whens.append(When(bio__icontains=term, then=Value(10 * weight)))
-
-        artists = artists.annotate(
-            search_rank=Case(*whens, default=Value(0), output_field=IntegerField())
-        ).order_by("-search_rank", "-monthly_listeners", "name")
-
-        return artists[offset : offset + limit], artists.count()
-
-    @staticmethod
-    def update_monthly_listeners(artist_id):
-        """Update monthly listeners count for an artist"""
-        from datetime import timedelta
+        if not name:
+            raise ValidationError("Member name is required")
+        if not role:
+            raise ValidationError("Member role is required")
 
         try:
             artist = Artist.objects.get(id=artist_id)
-
-            # Count unique listeners in last 30 days
-            thirty_days_ago = timezone.now() - timedelta(days=30)
-
-            # This is a simplified version
-            # In a real app, you'd track unique listeners
-
-            # For now, use follow count as proxy
-            listeners = Follow.objects.filter(artist=artist).count()
-
-            # Add some random variation for demo
-            import random
-
-            listeners += random.randint(1000, 10000)
-
-            artist.monthly_listeners = listeners
-            artist.save()
-
-            return listeners
-
         except Artist.DoesNotExist:
-            return 0
+            raise ValidationError(f"Artist with ID {artist_id} not found")
+
+        # Check for duplicate member
+        if ArtistMember.objects.filter(artist=artist, name__iexact=name).exists():
+            raise ValidationError(f"Member '{name}' already exists for this artist")
+
+        member = ArtistMember.objects.create(
+            artist=artist, name=name, role=role, join_date=data.get("join_date")
+        )
+
+        # TODO: Handle image upload
+
+        return member
+
+    @staticmethod
+    def remove_member(member_id: str) -> bool:
+        """
+        Remove a member from an artist/band
+
+        Args:
+            member_id: ID of the member to remove
+
+        Returns:
+            bool: True if removed successfully
+        """
+        try:
+            member = ArtistMember.objects.get(id=member_id)
+            member.delete()
+            return True
+        except ArtistMember.DoesNotExist:
+            raise ValidationError(f"Member with ID {member_id} not found")
+
+    @staticmethod
+    def _add_genres_to_artist(artist: Artist, genre_names: List[str]):
+        """
+        Helper method to add genres to an artist
+
+        Args:
+            artist: Artist instance
+            genre_names: List of genre names
+        """
+        for genre_name in genre_names:
+            genre_name = genre_name.strip()
+            if genre_name:
+                genre, _ = Genre.objects.get_or_create(
+                    name=genre_name, defaults={"slug": slugify(genre_name)}
+                )
+                artist.genres.add(genre)
+
+    @staticmethod
+    def get_artist_statistics(artist_id: str) -> Dict:
+        """
+        Get comprehensive statistics for an artist
+
+        Args:
+            artist_id: ID of the artist
+
+        Returns:
+            Dictionary with various statistics
+        """
+        try:
+            artist = Artist.objects.get(id=artist_id)
+        except Artist.DoesNotExist:
+            raise ValidationError(f"Artist with ID {artist_id} not found")
+
+        from apps.music.models import Song, Album
+        from apps.interactions.models import ListeningHistory
+
+        # Calculate statistics
+        total_albums = Album.objects.filter(artist=artist).count()
+        total_songs = Song.objects.filter(artist=artist).count()
+        total_plays = (
+            Song.objects.filter(artist=artist).aggregate(total=Count("plays"))["total"]
+            or 0
+        )
+
+        followers_count = FollowedArtist.objects.filter(artist=artist).count()
+
+        # Get top songs
+        top_songs = Song.objects.filter(artist=artist).order_by("-play_count")[:10]
+
+        return {
+            "total_albums": total_albums,
+            "total_songs": total_songs,
+            "total_plays": total_plays,
+            "followers_count": followers_count,
+            "monthly_listeners": artist.monthly_listeners,
+            "top_songs": top_songs,
+            "verified": artist.verified,
+        }
