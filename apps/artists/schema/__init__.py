@@ -1,6 +1,6 @@
 from .types import ArtistType, ArtistMemberType, SocialLinksType
 from .queries import ArtistQueryMixin
-from .mutations import CreateArtist
+from .mutations import ArtistMutationMixin
 from .inputs import *
 
 __all__ = [
@@ -16,5 +16,5 @@ class Query(ArtistQueryMixin, graphene.ObjectType):
     pass
 
 
-class Mutation(graphene.ObjectType):
-    create_artist = CreateArtist.Field()
+class Mutation(ArtistMutationMixin, graphene.ObjectType):
+    pass
