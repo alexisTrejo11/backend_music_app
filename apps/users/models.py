@@ -6,11 +6,23 @@ from apps.core.models import TimestampedModel
 class User(AbstractUser, TimestampedModel):
     """Extended user model"""
 
+    GENDER_CHOICES = [
+        ("male", "Male"),
+        ("female", "Female"),
+        ("other", "Other"),
+        ("prefer_not_to_say", "Prefer not to say"),
+    ]
+
     email = models.EmailField(unique=True, db_index=True)
     profile_image = models.ImageField(upload_to="profiles/", blank=True, null=True)
     bio = models.TextField(blank=True)
     birth_date = models.DateField(null=True, blank=True)
     country = models.CharField(max_length=2, blank=True)  # ISO country code
+    gender = models.CharField(
+        max_length=20,
+        choices=GENDER_CHOICES,
+        blank=True,
+    )
     is_artist = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
 
