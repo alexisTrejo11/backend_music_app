@@ -39,6 +39,7 @@ class UpdateArtist(TypedBaseMutation):
     data = graphene.Field(ArtistType)
 
     class Arguments:
+        id = graphene.ID(required=True)
         input = UpdateArtistInput(required=True)
 
     @classmethod
@@ -120,7 +121,7 @@ class RemoveArtistMember(TypedBaseMutation):
         member_id = graphene.ID(required=True)
 
     @classmethod
-    def mutate(cls, root, info, member_id):
+    def mutate(cls, root, info, artist_id, member_id):
         user = info.context.user
 
         if not user.is_authenticated:

@@ -254,11 +254,13 @@ class ArtistService:
         # - Growth rate
         # For now, return artists with most monthly listeners and recent activity
 
-        return Artist.objects.annotate(
-            recent_followers=Count(
-                "followers", filter=Q(followers__created_at__gte=time_filter)
-            )
-        ).order_by("-recent_followers", "-monthly_listeners")[:limit]
+        return list(
+            Artist.objects.annotate(
+                recent_followers=Count(
+                    "followers", filter=Q(followers__created_at__gte=time_filter)
+                )
+            ).order_by("-recent_followers", "-monthly_listeners")[:limit]
+        )
 
     @staticmethod
     def get_similar_artists(artist_id: str, limit: int = 20) -> List[Artist]:
