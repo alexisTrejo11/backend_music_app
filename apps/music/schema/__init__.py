@@ -1,10 +1,10 @@
-from .queries import SongQuery
-from .mutations import SongMutation
+from .queries.song_queries import SongQuery
+from .mutations import SongMutation, AlbumMutation
 
 
 class Query(SongQuery):
     pass
 
 
-class Mutation(SongMutation):
+class Mutation(SongMutation, AlbumMutation):
     pass

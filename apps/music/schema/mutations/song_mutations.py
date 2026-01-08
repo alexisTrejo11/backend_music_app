@@ -1,26 +1,23 @@
 import graphene
 from graphql import GraphQLError
 from django.core.exceptions import PermissionDenied
-from ..models import Album, Song
-from .types import SongType, AlbumType
-from ..services import SongService, AlbumService
-from .inputs import (
+from ...models import Album, Song
+from ..types import SongType, AlbumType
+from ...services import SongService, AlbumService
+from ..inputs import (
     CreateSongInput,
     UpdateSongInput,
     CreateAlbumInput,
     UpdateAlbumInput,
 )
+from apps.core.base_schema import BaseMutation
 
 
-class CreateSong(graphene.Mutation):
+class CreateSong(BaseMutation):
     """Create a new song (artist/admin only)"""
 
     class Arguments:
         input = CreateSongInput(required=True)
-
-    success = graphene.Boolean()
-    message = graphene.String()
-    song = graphene.Field(SongType)
 
     @classmethod
     def mutate(cls, root, info, input):
@@ -34,23 +31,19 @@ class CreateSong(graphene.Mutation):
 
         try:
             song = SongService.create_song(input)
-            return CreateSong(
-                success=True, message="Song created successfully", song=song
+            return CreateSong.success_response(
+                data=song, message="Song created successfully"
             )
         except Exception as e:
-            return CreateSong(success=False, message=str(e), song=None)
+            return CreateSong.error_response(message=str(e))
 
 
-class UpdateSong(graphene.Mutation):
+class UpdateSong(BaseMutation):
     """Update an existing song"""
 
     class Arguments:
         id = graphene.ID(required=True)
         input = UpdateSongInput(required=True)
-
-    success = graphene.Boolean()
-    message = graphene.String()
-    song = graphene.Field(SongType)
 
     @classmethod
     def mutate(cls, root, info, id, input):
@@ -64,21 +57,18 @@ class UpdateSong(graphene.Mutation):
 
         try:
             song = SongService.update_song(id, input)
-            return UpdateSong(
-                success=True, message="Song updated successfully", song=song
+            return UpdateSong.success_response(
+                data=song, message="Song updated successfully"
             )
         except Exception as e:
-            return UpdateSong(success=False, message=str(e), song=None)
+            return UpdateSong.error_response(message=str(e))
 
 
-class DeleteSong(graphene.Mutation):
+class DeleteSong(BaseMutation):
     """Delete a song (admin only)"""
 
     class Arguments:
         id = graphene.ID(required=True)
-
-    success = graphene.Boolean()
-    message = graphene.String()
 
     @classmethod
     def mutate(cls, root, info, id):
@@ -92,12 +82,12 @@ class DeleteSong(graphene.Mutation):
 
         try:
             SongService.delete_song(id)
-            return DeleteSong(success=True, message="Song deleted successfully")
+            return DeleteSong.success_response(message="Song deleted successfully")
         except Exception as e:
-            return DeleteSong(success=False, message=str(e))
+            return DeleteSong.error_response(message=str(e))
 
 
-class LikeSong(graphene.Mutation):
+class LikeSong(BaseMutation):
     """Like a song"""
 
     class Arguments:
@@ -125,7 +115,7 @@ class LikeSong(graphene.Mutation):
             raise GraphQLError(str(e))
 
 
-class UnlikeSong(graphene.Mutation):
+class UnlikeSong(BaseMutation):
     """Unlike a song"""
 
     class Arguments:
@@ -173,65 +163,6 @@ class PlaySong(graphene.Mutation):
             return PlaySong(success=False, message=str(e))
 
 
-class CreateAlbum(graphene.Mutation):
-    """Create a new album"""
-
-    class Arguments:
-        input = CreateAlbumInput(required=True)
-
-    success = graphene.Boolean()
-    message = graphene.String()
-    album = graphene.Field(AlbumType)
-
-    @classmethod
-    def mutate(cls, root, info, input):
-        user = info.context.user
-
-        if not user.is_authenticated:
-            raise PermissionDenied("Authentication required")
-
-        if not (user.is_staff or user.is_superuser):
-            raise PermissionDenied("You don't have permission to create albums")
-
-        try:
-            album = AlbumService.create_album(input)
-            return CreateAlbum(
-                success=True, message="Album created successfully", album=album
-            )
-        except Exception as e:
-            return CreateAlbum(success=False, message=str(e), album=None)
-
-
-class UpdateAlbum(graphene.Mutation):
-    """Update an existing album"""
-
-    class Arguments:
-        id = graphene.ID(required=True)
-        input = UpdateAlbumInput(required=True)
-
-    success = graphene.Boolean()
-    message = graphene.String()
-    album = graphene.Field(AlbumType)
-
-    @classmethod
-    def mutate(cls, root, info, id, input):
-        user = info.context.user
-
-        if not user.is_authenticated:
-            raise PermissionDenied("Authentication required")
-
-        if not (user.is_staff or user.is_superuser):
-            raise PermissionDenied("You don't have permission to update albums")
-
-        try:
-            album = AlbumService.update_album(id, input)
-            return UpdateAlbum(
-                success=True, message="Album updated successfully", album=album
-            )
-        except Exception as e:
-            return UpdateAlbum(success=False, message=str(e), album=None)
-
-
 class SongMutation(graphene.ObjectType):
     """Song-related GraphQL mutations"""
 
@@ -241,5 +172,3 @@ class SongMutation(graphene.ObjectType):
     like_song = LikeSong.Field()
     unlike_song = UnlikeSong.Field()
     play_song = PlaySong.Field()
-    create_album = CreateAlbum.Field()
-    update_album = UpdateAlbum.Field()
