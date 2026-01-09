@@ -30,7 +30,7 @@ class CreateArtist(TypedBaseMutation):
                 data=artist, message="Artist created successfully"
             )
         except Exception as e:
-            return cls.error_response(message=str(e))
+            return cls.failure_response(message=str(e))
 
 
 class UpdateArtist(TypedBaseMutation):
@@ -58,7 +58,7 @@ class UpdateArtist(TypedBaseMutation):
                 data=artist, message="Artist updated successfully"
             )
         except Exception as e:
-            return cls.error_response(message=str(e))
+            return cls.failure_response(message=str(e))
 
 
 class DeleteArtist(TypedBaseMutation):
@@ -81,7 +81,7 @@ class DeleteArtist(TypedBaseMutation):
             ArtistService.delete_artist(id)
             return cls.success_response(message="Artist deleted successfully")
         except Exception as e:
-            return cls.error_response(message=str(e))
+            return cls.failure_response(message=str(e))
 
 
 class AddArtistMember(TypedBaseMutation):
@@ -108,7 +108,7 @@ class AddArtistMember(TypedBaseMutation):
                 data=artist, message="Artist member added successfully"
             )
         except Exception as e:
-            return cls.error_response(message=str(e))
+            return cls.failure_response(message=str(e))
 
 
 class RemoveArtistMember(TypedBaseMutation):
@@ -136,7 +136,7 @@ class RemoveArtistMember(TypedBaseMutation):
                 data=artist, message="Artist member removed successfully"
             )
         except Exception as e:
-            return cls.error_response(message=str(e))
+            return cls.failure_response(message=str(e))
 
 
 class ArtistMutationMixin:

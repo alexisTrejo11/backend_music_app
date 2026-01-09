@@ -31,7 +31,7 @@ class CreateAlbum(BaseMutation):
                 success=True, message="Album created successfully", data=album
             )
         except Exception as e:
-            return CreateAlbum.error_response(message=str(e))
+            return CreateAlbum.failure_response(message=str(e))
 
 
 class UpdateAlbum(BaseMutation):

@@ -21,7 +21,7 @@ class TypedBaseMutation(graphene.Mutation):
         )  # pyright: ignore[reportCallIssue]
 
     @classmethod
-    def error_response(cls, message: str = ""):
+    def failure_response(cls, message: str = ""):
         return cls.create_response(success=False, message=message, data=None)
 
     @classmethod
@@ -39,20 +39,12 @@ class BaseMutation(graphene.Mutation):
         abstract = True
 
     @classmethod
-    def require_authentication(cls, info) -> Any:
-        """Ensure user is authenticated"""
-        user = info.context.user
-        if not user.is_authenticated:
-            raise PermissionDenied("Authentication required")
-        return user
-
-    @classmethod
     def execute_service_method(cls, service_method, *args, **kwargs) -> Any:
         """Execute service method with error handling"""
         try:
             return service_method(*args, **kwargs)
         except ValidationError as e:
-            return cls.error_response(message=str(e))
+            return cls.failure_response(message=str(e))
 
     @classmethod
     def create_auth_payload(cls, result: Dict):
@@ -66,7 +58,7 @@ class BaseMutation(graphene.Mutation):
         )
 
     @classmethod
-    def error_response(cls, message: str = "") -> graphene.Mutation:
+    def failure_response(cls, message: str = "") -> graphene.Mutation:
         """Create error response"""
         return cls(success=False, message=message)
 

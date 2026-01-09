@@ -35,7 +35,7 @@ class CreateSong(BaseMutation):
                 data=song, message="Song created successfully"
             )
         except Exception as e:
-            return CreateSong.error_response(message=str(e))
+            return CreateSong.failure_response(message=str(e))
 
 
 class UpdateSong(BaseMutation):
@@ -61,7 +61,7 @@ class UpdateSong(BaseMutation):
                 data=song, message="Song updated successfully"
             )
         except Exception as e:
-            return UpdateSong.error_response(message=str(e))
+            return UpdateSong.failure_response(message=str(e))
 
 
 class DeleteSong(BaseMutation):
@@ -84,7 +84,7 @@ class DeleteSong(BaseMutation):
             SongService.delete_song(id)
             return DeleteSong.success_response(message="Song deleted successfully")
         except Exception as e:
-            return DeleteSong.error_response(message=str(e))
+            return DeleteSong.failure_response(message=str(e))
 
 
 class LikeSong(BaseMutation):
