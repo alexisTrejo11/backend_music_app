@@ -27,7 +27,3 @@ htmlcov
 .mypy_cache
 
 *.md
-!docker/README.md
-
-Dockerfile*
-docker-compose*.yml

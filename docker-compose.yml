@@ -1,24 +1,11 @@
-# Local development stack: app + PostgreSQL + Redis.
-#
-# Run from repository root:
-#   docker compose -f docker/docker-compose.local.yml --project-directory . up --build
-#
-# Service hostnames and credentials below are fixed for the local stack.
-# Values from .env (e.g. production DATABASE_URL) are overridden for the web
-# service so the app always connects to the postgres/redis containers.
-
-x-local-postgres: &local-postgres
-  POSTGRES_DB: music_db
-  POSTGRES_USER: music
-  POSTGRES_PASSWORD: music
-
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: music-api-postgres
     restart: unless-stopped
     environment:
-      <<: *local-postgres
+      POSTGRES_DB: music_db
+      POSTGRES_USER: music
+      POSTGRES_PASSWORD: music
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -32,7 +19,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: music-api-redis
     restart: unless-stopped
     command: redis-server --save 60 1 --loglevel warning
     ports:
@@ -46,21 +32,13 @@ services:
       retries: 10
 
   web:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-    container_name: music-api-web
+    build: .
     restart: unless-stopped
-    env_file:
-      - .env
+    env_file: .env
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.docker
-      DEBUG: "True"
-      ALLOWED_HOSTS: localhost,127.0.0.1,web
-      DATABASE_HOST: postgres
-      DATABASE_PORT: "5432"
+      DJANGO_SETTINGS_MODULE: config.settings.development
       DATABASE_URL: postgresql://music:music@postgres:5432/music_db
-      COLLECT_STATIC: "false"
+      ALLOWED_HOSTS: localhost,127.0.0.1,web
     command: >
       gunicorn config.wsgi:application
       --bind 0.0.0.0:8000

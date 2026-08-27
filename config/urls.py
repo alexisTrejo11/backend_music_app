@@ -6,11 +6,11 @@ from graphene_django.views import GraphQLView
 from django.views.decorators.csrf import csrf_exempt
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('graphql/', csrf_exempt(GraphQLView.as_view(graphiql=True))),
-    path('api/', include('rest_framework.urls')),
+    path("admin/", admin.site.urls),
+    path("graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
+    path("api/", include("rest_framework.urls")),
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += [path('__debug__/', include('debug_toolbar.urls'))]
+    urlpatterns += [path("__debug__/", include("debug_toolbar.urls"))]

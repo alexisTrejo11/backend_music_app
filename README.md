@@ -33,7 +33,7 @@ GraphQL backend for a Spotify-style music platform—catalog, playlists, social 
 
 This project is a **Django + Graphene** backend for streaming music applications. It exposes a unified GraphQL schema for artists, albums, songs, user playlists, likes and reviews, listening history, and NumPy-powered personalized recommendations with human-readable “why this song” reasons.
 
-The production deployment model targets **AWS**: the application runs in Docker (EC2 or ECS) behind an ALB, with **Amazon RDS PostgreSQL** as the managed database (`DATABASE_URL`). Local development uses SQLite or a Docker Compose stack with bundled Postgres and Redis.
+The production deployment model targets **AWS**: the application runs in Docker (EC2 or ECS) behind an ALB, with **Amazon RDS PostgreSQL** as the managed database (`DATABASE_URL`). Local development runs the app, PostgreSQL, and Redis with Docker Compose.
 
 | | |
 |---|---|
@@ -82,8 +82,8 @@ The documentation for this project is externally hosted in my personal website: 
 - **Runtime:** Python 3.12, Django 4.2.11
 - **API:** Graphene-Django 3.2 (GraphQL), Django REST Framework (secondary)
 - **Auth:** SimpleJWT (tokens on login/register; GraphQL Bearer middleware pending)
-- **Database:** SQLite (local dev), PostgreSQL on Amazon RDS (production)
-- **Cache / tasks:** Redis in local Docker stack; ElastiCache + Celery planned
+- **Database:** PostgreSQL locally and on Amazon RDS in production
+- **Cache / tasks:** Redis locally; ElastiCache + Celery planned
 - **ML / scoring:** NumPy in recommendation services
 - **Deploy:** Docker multi-stage image, Gunicorn, WhiteNoise, AWS ALB + RDS
 
@@ -111,51 +111,32 @@ Full diagram, layers, and decisions: [ProjectArchitecture.md](docs/generated/Pro
 - Python 3.12+
 - pip / venv
 - Docker & Docker Compose v2 (recommended)
-- PostgreSQL via RDS for production (SQLite OK for bare-metal local dev)
+- PostgreSQL via Docker Compose for local development or RDS for production
 - NumPy-compatible environment (included in `requirements.txt`)
 
 ---
 
 ## Quick start
 
-### Local development (SQLite)
+### Local development
 
 ```bash
 git clone https://github.com/alexisTrejo11/music-streaming-api
 cd music-streaming-api
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
 cp .env.example .env
-
-export DJANGO_SETTINGS_MODULE=config.settings.development
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver
+docker compose up --build
 ```
 
 - GraphiQL: http://127.0.0.1:8000/graphql/
 - Admin: http://127.0.0.1:8000/admin/
 
-### Docker (local full stack)
+Create a superuser in another terminal:
 
 ```bash
-cp .env.example .env
-docker compose -f docker/docker-compose.local.yml --project-directory . up --build
+docker compose exec web python manage.py createsuperuser
 ```
 
-See [docker/README.md](docker/README.md) for compose details.
-
-### Docker (production / cloud — RDS)
-
-```bash
-cp .env.example .env
-# Set DATABASE_URL=postgresql://USER:PASS@your-db.rds.amazonaws.com:5432/dbname
-# Set DEBUG=False, SECRET_KEY, ALLOWED_HOSTS, CORS_ALLOWED_ORIGINS
-docker compose -f docker/docker-compose.prod.yml --project-directory . up -d --build
-```
-
-Details: [ProjectInfrastructure.md](docs/generated/ProjectInfrastructure.md).
+The Compose stack runs the Django app at `http://127.0.0.1:8000`, PostgreSQL at `localhost:5432`, and Redis at `localhost:6379`. Source code is mounted into the app container and Gunicorn reloads after Python changes.
 
 ---
 
@@ -166,15 +147,14 @@ Copy [`.env.example`](.env.example) to `.env`.
 | Variable | Description |
 |----------|-------------|
 | `SECRET_KEY` | Django secret (required) |
-| `DEBUG` | `False` in production |
-| `DJANGO_SETTINGS_MODULE` | `config.settings.development` / `docker` / `production` |
-| `DATABASE_URL` | Full PostgreSQL URL for production/RDS (see `.env.example`) |
+| `DJANGO_SETTINGS_MODULE` | `config.settings.development` or `config.settings.production` |
+| `DATABASE_URL` | Full PostgreSQL URL; host-local by default and overridden by Compose for the app container |
 | `ALLOWED_HOSTS` | Comma-separated domains |
 | `CORS_ALLOWED_ORIGINS` | Frontend origins for GraphQL clients |
 | `WEB_PORT` | Host port mapped to container 8000 |
 | `SECURE_SSL_REDIRECT` | Enable when TLS terminates at the app (usually `False` behind ALB) |
 
-Full Docker variable reference: [docker/README.md](docker/README.md).
+`docker compose up --build` starts the complete local stack.
 
 ---
 
@@ -206,7 +186,9 @@ music-streaming-api/
 │   ├── recommendations/  # Taste, radio, Discover Weekly
 │   └── core/             # Decorators, logging, base mutations
 ├── config/               # Settings, urls, merged GraphQL schema
-├── docker/               # Dockerfile, compose, entrypoint
+├── Dockerfile            # Production image definition
+├── docker-compose.yml    # Local app, PostgreSQL, and Redis stack
+├── entrypoint.sh         # Migration and static-file startup tasks
 ├── docs/
 │   ├── source/           # YAML source docs (edit these)
 │   ├── generated/        # Readable Markdown (generated)
@@ -219,7 +201,7 @@ music-streaming-api/
 
 ## Deployment
 
-Production runs the **web container only** (`docker/docker-compose.prod.yml`). Point `DATABASE_URL` at your **existing Amazon RDS** PostgreSQL instance, place TLS on an **ALB**, and set `ALLOWED_HOSTS` / `CORS_ALLOWED_ORIGINS` for your domain. Plan separate work for S3 media, ElastiCache Redis, Celery workers, and JWT GraphQL middleware before high-traffic launch.
+Build the root `Dockerfile` for production. It defaults to `config.settings.production`; point `DATABASE_URL` at your **existing Amazon RDS** PostgreSQL instance, set `SECRET_KEY`, `ALLOWED_HOSTS`, and `CORS_ALLOWED_ORIGINS`, and run it behind an ALB. If you pass an environment file to the container, set `DJANGO_SETTINGS_MODULE=config.settings.production`. Plan separate work for S3 media, ElastiCache Redis, Celery workers, and JWT GraphQL middleware before high-traffic launch.
 
 Details: [ProjectInfrastructure.md](docs/generated/ProjectInfrastructure.md).
 
@@ -275,5 +257,4 @@ MIT License — see [LICENSE](LICENSE) file.
 |----------|-----|
 | Repository | [github.com/alexisTrejo11/music-streaming-api](https://github.com/alexisTrejo11/music-streaming-api) |
 | Documentation hub | [docs/generated/README.md](docs/generated/README.md) |
-| Docker guide | [docker/README.md](docker/README.md) |
 | GraphiQL (local) | [http://127.0.0.1:8000/graphql/](http://127.0.0.1:8000/graphql/) |

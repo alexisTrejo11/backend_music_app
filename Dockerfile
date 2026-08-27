@@ -36,9 +36,8 @@ RUN apt-get update \
     && adduser --system --ingroup appgroup --home /home/appuser appuser
 
 COPY --from=builder /install /usr/local
-
 COPY --chown=appuser:appgroup . /app
-COPY --chown=appuser:appgroup docker/entrypoint.sh /entrypoint.sh
+COPY --chown=appuser:appgroup entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh \
     && mkdir -p logs media staticfiles \
