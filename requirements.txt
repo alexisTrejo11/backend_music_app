@@ -29,6 +29,7 @@ numpy==1.26.3
 # Production server & static files
 gunicorn==21.2.0
 whitenoise==6.6.0
+django-prometheus==2.3.1
 
 # Utilities
 python-slugify==8.0.1

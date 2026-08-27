@@ -13,11 +13,14 @@ DATABASES = {
         conn_health_checks=True,
     )
 }
+DATABASES["default"]["ENGINE"] = DATABASES["default"]["ENGINE"].replace(
+    "django.db.backends", "django_prometheus.db.backends"
+)
 
 # Email
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # Debug toolbar
 INSTALLED_APPS += ["debug_toolbar"]
-MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
+MIDDLEWARE.insert(-1, "debug_toolbar.middleware.DebugToolbarMiddleware")
 INTERNAL_IPS = ["127.0.0.1"]

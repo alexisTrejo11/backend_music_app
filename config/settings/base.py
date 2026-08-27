@@ -24,6 +24,7 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 # Application definition
 INSTALLED_APPS = [
+    "django_prometheus",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -46,6 +47,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -54,6 +56,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -191,9 +194,8 @@ LOGGING = {
         # Console (for development)
         "console": {
             "level": "DEBUG" if DEBUG else "INFO",
-            "filters": ["require_debug_true"],
             "class": "logging.StreamHandler",
-            "formatter": "simple",
+            "formatter": "json",
         },
         # General file log
         "file_general": {
@@ -276,7 +278,7 @@ LOGGING = {
         },
         # Requests
         "django.request": {
-            "handlers": ["file_errors", "mail_admins", "console"],
+            "handlers": ["file_errors", "mail_admins", "console", "file_json"],
             "level": "ERROR",
             "propagate": False,
         },

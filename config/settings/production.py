@@ -21,6 +21,7 @@ DATABASES = {
         conn_health_checks=True,
     )
 }
+DATABASES["default"]["ENGINE"] = "django_prometheus.db.backends.postgresql"
 
 MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 
